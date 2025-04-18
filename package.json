@@ -1,6 +1,6 @@
 {
   "name": "dev-react-microstore",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A minimal global state manager for React with fine-grained subscriptions.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

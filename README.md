@@ -48,8 +48,9 @@ const taskStore = createStoreState({
 function TaskList() {
   // Only re-render when task completion status changes
   const { tasks } = useStoreSelector(taskStore, [
-    { tasks: (prev, next) => 
-      prev.some(t => t.completed) !== next.some(t => t.completed) 
+    { 
+      tasks: (prev, next) => 
+        !prev.some((task, i) => task.id === next?.[i]?.id && task.completed !== next[i].completed)
     }
   ]);
   
