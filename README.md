@@ -162,13 +162,17 @@ npm install --save-dev eslint-plugin-react-microstore
 
 ESLint configuration:
 
-```json
-{
-  "plugins": ["react-microstore"],
-  "rules": {
-    "react-microstore/no-unused-selector-keys": "warn"
-  }
-}
+```tsx
+import reactMicrostore from 'eslint-plugin-react-microstore';
+
+const eslintConfig = [{
+    "plugins": {
+      "react-microstore": reactMicrostore
+    },
+    "rules": {
+      "react-microstore/no-unused-selector-keys": "warn"
+    }
+}]
 ```
 
  `react-microstore/no-unused-selector-keys`  
