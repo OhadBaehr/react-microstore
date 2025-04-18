@@ -145,3 +145,39 @@ function UserProfile() {
 - Fully Type-safe
 - No dependencies other than React
 - Update store from anywhere in your application
+
+## Development Tools
+
+### ESLint Plugin
+
+[eslint-plugin-react-microstore](https://www.npmjs.com/package/eslint-plugin-react-microstore) provides ESLint rules to help you write with react-microstore.
+
+#### Installation
+
+```bash
+npm install --save-dev eslint-plugin-react-microstore
+```
+
+#### Usage
+
+ESLint configuration:
+
+```json
+{
+  "plugins": ["react-microstore"],
+  "rules": {
+    "react-microstore/no-unused-selector-keys": "warn"
+  }
+}
+```
+
+ `react-microstore/no-unused-selector-keys`  
+  Warns when you select keys in `useStoreSelector` but don't destructure or use them.
+
+```tsx
+// ❌ This will trigger the rule
+const { a } = useStoreSelector(store, ['a', 'b']); // 'b' is unused
+
+// ✅ This is fine
+const { a, b } = useStoreSelector(store, ['a', 'b']);
+```
