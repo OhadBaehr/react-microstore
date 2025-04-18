@@ -1,0 +1,32 @@
+{
+  "name": "react-microstore",
+  "version": "1.0.0",
+  "description": "A minimal global state manager for React with fine-grained subscriptions.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --minify",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "react",
+    "state",
+    "store",
+    "microstore",
+    "selector",
+    "hook",
+    "tiny",
+    "minimal"
+  ],
+  "author": "Ohad Baehr",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=17.0.0",
+    "react-dom": ">=17.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3"
+  }
+}

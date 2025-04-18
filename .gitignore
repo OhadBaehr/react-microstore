@@ -1,0 +1,22 @@
+# Build output
+dist/
+*.log
+
+# Benchmark build files
+benchmark/dist/
+benchmark/node_modules/
+
+# Node modules
+node_modules/
+
+# Lockfiles (optional — if you use yarn or pnpm)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# IDE files
+.vscode/
+.idea/
+
+# MacOS/OS junk
+.DS_Store
