@@ -1,9 +1,17 @@
 {
   "name": "dev-react-microstore",
-  "version": "1.0.3",
+  "version": "5.0.0",
   "description": "A minimal global state manager for React with fine-grained subscriptions.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OhadBaehr/react-microstore.git"
+  },
+  "homepage": "https://github.com/OhadBaehr/react-microstore",
+  "bugs": {
+    "url": "https://github.com/OhadBaehr/react-microstore/issues"
+  },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --minify",
     "prepare": "npm run build"
@@ -21,8 +29,7 @@
   "author": "Ohad Baehr",
   "license": "MIT",
   "peerDependencies": {
-    "react": ">=17.0.0",
-    "react-dom": ">=17.0.0"
+    "react": ">=17.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.1.2",

@@ -8,7 +8,7 @@ A minimal global state manager for React with fine-grained subscriptions.
 npm install react-microstore
 ```
 
-## Usage
+## Basic Usage
 
 ```tsx
 import { createStoreState, useStoreSelector } from 'react-microstore';
@@ -27,6 +27,102 @@ function Counter() {
     </div>
   );
 }
+```
+
+## Middleware Support
+
+Add Express-style middleware to intercept and control state updates:
+
+```tsx
+const store = createStoreState({ count: 0, user: null });
+
+// Validation middleware - can block updates
+store.addMiddleware(
+  (currentState, update, next) => {
+    if (update.count !== undefined && update.count < 0) {
+      // Don't call next() to block the update
+      console.log('Blocked negative count');
+      return;
+    }
+    next(); // Allow the update
+  },
+  ['count'] // Only run for count updates
+);
+
+// Transform middleware - can modify updates
+store.addMiddleware(
+  (currentState, update, next) => {
+    if (update.user?.name) {
+      const modifiedUpdate = {
+        ...update,
+        user: {
+          ...update.user,
+          name: update.user.name.trim().toLowerCase()
+        }
+      };
+      next(modifiedUpdate); // Pass modified update
+    } else {
+      next(); // Pass original update
+    }
+  }
+);
+
+// Logging middleware
+store.addMiddleware(
+  (currentState, update, next) => {
+    console.log('Processing update:', update);
+    next(); // Continue
+  }
+);
+```
+
+## Persistence
+
+The store supports automatic state persistence using middleware with per-key storage:
+
+```typescript
+import { createStoreState, createPersistenceMiddleware, loadPersistedState } from '@ohad/react-microstore'
+
+// Load persisted state during initialization
+const persistedState = loadPersistedState<AppState>(
+  localStorage, 
+  'my-app-state', 
+  ['theme', 'userName', 'isLoggedIn']
+);
+
+// Create store with merged initial + persisted state
+const store = createStoreState<AppState>({
+  theme: 'light',
+  userName: '',
+  isLoggedIn: false,
+  tempData: { cache: [] },
+  ...persistedState // Apply persisted values
+});
+
+// Add persistence middleware - saves each key individually
+store.addMiddleware(
+  createPersistenceMiddleware(localStorage, 'my-app-state', ['theme', 'userName', 'isLoggedIn'])
+);
+```
+
+**Key benefits:**
+
+✅ **Per-key storage** - Each key stored separately (e.g., `my-app-state:theme`, `my-app-state:userName`)  
+✅ **Efficient writes** - Only writes to storage when specified keys actually change  
+✅ **No state blobs** - Avoids serializing/storing entire state objects  
+✅ **Composable** - Uses the same middleware system as validation/logging  
+✅ **Flexible** - Easy to swap storage backends or add custom logic
+
+## Debouncing
+
+Control when updates are applied:
+
+```tsx
+// Debounce updates for 300ms
+store.set({ searchQuery: 'new value' }, 300);
+
+// Or use boolean for default debounce (0ms)
+store.set({ count: count + 1 }, true);
 ```
 
 ## Custom Comparison Function
@@ -143,7 +239,10 @@ function UserProfile() {
 - Extremely lightweight (less than 2KB minified)
 - Fine-grained subscriptions to minimize re-renders
 - Custom comparison functions for complex state updates
-- Fully Type-safe
+- Simple middleware support with `addMiddleware()` 
+- Automatic persistence to localStorage/sessionStorage
+- Debouncing support to control update frequency
+- Fully Type-safe with TypeScript
 - No dependencies other than React
 - Update store from anywhere in your application
 
