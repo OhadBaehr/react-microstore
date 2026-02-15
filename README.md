@@ -1,287 +1,238 @@
-# react-microstore
+# dev-react-microstore
 
-A minimal global state manager for React with fine-grained subscriptions.
+Probably the fastest store library ever created for React.
+
+A minimal, zero-dependency global state manager with fine-grained subscriptions, full TypeScript inference, and a tiny footprint (< 5KB minified).
 
 ## Installation
 
 ```bash
-npm install react-microstore
+npm install dev-react-microstore
 ```
 
-## Basic Usage
+## Quick Start
 
 ```tsx
-import { createStoreState, useStoreSelector } from 'react-microstore';
+import { createStoreState, createSelectorHook } from 'dev-react-microstore';
 
-const counterStore = createStoreState({ count: 0 });
+const store = createStoreState({
+  count: 0,
+  user: { name: 'Alice', age: 30 },
+});
+
+export const useStore = createSelectorHook(store);
 
 function Counter() {
-  const { count } = useStoreSelector(counterStore, ['count']);
-
-  return (
-    <div>
-      <p>{count}</p>
-      <button onClick={() => counterStore.set({ count: count + 1 })}>
-        Increment
-      </button>
-    </div>
-  );
+  const { count } = useStore(['count']);
+  return <button onClick={() => store.setKey('count', count + 1)}>{count}</button>;
 }
 ```
 
-## Middleware Support
+One line to create the hook, all types inferred from the store instance — no manual generics.
 
-Add Express-style middleware to intercept and control state updates:
+## API
+
+### `createStoreState(initialState)`
+
+Creates a reactive store. Returns:
+
+| Method | Description |
+|--------|-------------|
+| `get()` | Returns the full state object |
+| `getKey(key)` | Returns the value of a single key |
+| `set(partial)` | Partially updates state |
+| `setKey(key, value)` | Sets a single key |
+| `merge(key, partial)` | Returns `{ ...state[key], ...partial }` without writing |
+| `mergeSet(key, partial)` | Shallow-merges and writes to the store |
+| `reset(keys?)` | Resets to initial values. No args = full reset |
+| `batch(fn)` | Groups updates — listeners fire once at the end |
+| `subscribe(keys, listener)` | Subscribe to specific keys. Returns unsubscribe function |
+| `select(keys)` | Returns a snapshot of specific keys |
+| `onChange(keys, callback)` | Non-React listener with `(newValues, prevValues)` |
+| `addMiddleware(fn, keys?)` | Intercept, block, or transform updates |
+| `skipSetWhen(key, fn)` | Custom equality — skip update when `fn(prev, next)` returns `true` |
+| `removeSkipSetWhen(key)` | Remove custom equality for a key |
+
+### `createSelectorHook(store)`
+
+Returns a pre-bound React hook with full type inference:
 
 ```tsx
-const store = createStoreState({ count: 0, user: null });
+const useStore = createSelectorHook(store);
 
-// Validation middleware - can block updates
+const { user } = useStore(['user']);
+// user is { name: string; age: number }
+```
+
+### `useStoreSelector(store, selector)`
+
+Low-level React hook. Prefer `createSelectorHook` for cleaner usage.
+
+## merge vs mergeSet
+
+`merge` returns the merged object without touching the store:
+
+```tsx
+const updated = store.merge('user', { age: 31 });
+// updated = { name: 'Alice', age: 31 }
+// store is unchanged
+```
+
+`mergeSet` writes it:
+
+```tsx
+store.mergeSet('user', { age: 31 });
+// store.user is now { name: 'Alice', age: 31 }
+```
+
+Both are type-safe — calling on a primitive key is a compile error.
+
+## Batching
+
+Group multiple updates so listeners fire once:
+
+```tsx
+store.batch(() => {
+  store.setKey('count', 10);
+  store.mergeSet('user', { age: 25 });
+  store.setKey('name', 'Bob');
+});
+```
+
+## reset
+
+```tsx
+store.reset();              // Full reset to initial state
+store.reset(['count']);      // Reset specific keys
+```
+
+## Middleware
+
+Intercept, block, or transform updates:
+
+```tsx
+// Validation — block negative counts
 store.addMiddleware(
-  (currentState, update, next) => {
-    if (update.count !== undefined && update.count < 0) {
-      // Don't call next() to block the update
-      console.log('Blocked negative count');
-      return;
-    }
-    next(); // Allow the update
+  (state, update, next) => {
+    if (update.count !== undefined && update.count < 0) return;
+    next();
   },
-  ['count'] // Only run for count updates
+  ['count']
 );
 
-// Transform middleware - can modify updates
-store.addMiddleware(
-  (currentState, update, next) => {
-    if (update.user?.name) {
-      const modifiedUpdate = {
-        ...update,
-        user: {
-          ...update.user,
-          name: update.user.name.trim().toLowerCase()
-        }
-      };
-      next(modifiedUpdate); // Pass modified update
-    } else {
-      next(); // Pass original update
-    }
+// Transform
+store.addMiddleware((state, update, next) => {
+  if (update.user?.name) {
+    next({ ...update, user: { ...update.user, name: update.user.name.trim() } });
+  } else {
+    next();
   }
-);
+});
 
-// Logging middleware
-store.addMiddleware(
-  (currentState, update, next) => {
-    console.log('Processing update:', update);
-    next(); // Continue
-  }
-);
+// Logging
+store.addMiddleware((state, update, next) => {
+  console.log('Update:', update);
+  next();
+});
 ```
 
 ## Persistence
 
-The store supports automatic state persistence using middleware with per-key storage:
+Built-in middleware for automatic state persistence. Supports both sync and async storage:
 
-```typescript
-import { createStoreState, createPersistenceMiddleware, loadPersistedState } from '@ohad/react-microstore'
+```tsx
+import { createStoreState, createPersistenceMiddleware, loadPersistedState } from 'dev-react-microstore';
 
-// Load persisted state during initialization
-const persistedState = loadPersistedState<AppState>(
-  localStorage, 
-  'my-app-state', 
-  ['theme', 'userName', 'isLoggedIn']
-);
+// Sync (localStorage / sessionStorage)
+const persisted = loadPersistedState<AppState>(localStorage, 'app', ['theme', 'user']);
+const store = createStoreState<AppState>({ theme: 'light', user: null, ...persisted });
+store.addMiddleware(createPersistenceMiddleware(localStorage, 'app', ['theme', 'user']));
 
-// Create store with merged initial + persisted state
-const store = createStoreState<AppState>({
-  theme: 'light',
-  userName: '',
-  isLoggedIn: false,
-  tempData: { cache: [] },
-  ...persistedState // Apply persisted values
+// Async (React Native AsyncStorage)
+const persisted = await loadPersistedState<AppState>(AsyncStorage, 'app', ['theme', 'user']);
+const store = createStoreState<AppState>({ theme: 'light', user: null, ...persisted });
+store.addMiddleware(createPersistenceMiddleware(AsyncStorage, 'app', ['theme', 'user']));
+```
+
+Each key is stored individually (`app:theme`, `app:user`).
+
+## onChange
+
+Listen for value changes outside React:
+
+```tsx
+const unsub = store.onChange(['theme', 'locale'], (values, prev) => {
+  document.body.className = values.theme;
 });
 
-// Add persistence middleware - saves each key individually
-store.addMiddleware(
-  createPersistenceMiddleware(localStorage, 'my-app-state', ['theme', 'userName', 'isLoggedIn'])
-);
+unsub();
 ```
 
-**Key benefits:**
+## Custom Comparison
 
-✅ **Per-key storage** - Each key stored separately (e.g., `my-app-state:theme`, `my-app-state:userName`)  
-✅ **Efficient writes** - Only writes to storage when specified keys actually change  
-✅ **No state blobs** - Avoids serializing/storing entire state objects  
-✅ **Composable** - Uses the same middleware system as validation/logging  
-✅ **Flexible** - Easy to swap storage backends or add custom logic
-
-## Debouncing
-
-Control when updates are applied:
+Control when re-renders happen:
 
 ```tsx
-// Debounce updates for 300ms
-store.set({ searchQuery: 'new value' }, 300);
-
-// Or use boolean for default debounce (0ms)
-store.set({ count: count + 1 }, true);
-```
-
-## Custom Comparison Function
-
-```tsx
-import { createStoreState, useStoreSelector } from 'react-microstore';
-
-const taskStore = createStoreState({
-  tasks: [
-    { id: 1, title: 'Learn React', completed: false, priority: 'high' },
-    { id: 2, title: 'Build app', completed: false, priority: 'medium' }
-  ],
-  filters: {
-    showCompleted: true,
-    priorityFilter: null
+const { tasks } = useStore([
+  {
+    tasks: (prev, next) =>
+      !prev.some((t, i) => t.completed !== next?.[i]?.completed)
   }
-});
-
-function TaskList() {
-  // Only re-render when task completion status changes
-  const { tasks } = useStoreSelector(taskStore, [
-    { 
-      tasks: (prev, next) => 
-        !prev.some((task, i) => task.id === next?.[i]?.id && task.completed !== next[i].completed)
-    }
-  ]);
-  
-  const toggleTask = (id) => {
-    const currentTasks = taskStore.get().tasks;
-    const updatedTasks = currentTasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    );
-    
-    taskStore.set({ tasks: updatedTasks });
-  };
-  
-  return (
-    <ul>
-      {tasks.map(task => (
-        <li key={task.id}>
-          {task.title} - {task.completed ? 'Done' : 'Pending'}
-          <button onClick={() => toggleTask(task.id)}>
-            Toggle
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
+]);
 ```
 
-## Example of setting store from outside components
+## skipSetWhen
+
+Custom equality per key — skip updates when values are semantically equal:
 
 ```tsx
-import { createStoreState, useStoreSelector } from 'react-microstore';
+const store = createStoreState({ user: { id: 1, name: 'Alice' }, tags: ['a', 'b'] });
 
-// Create store
-const userStore = createStoreState({
-  user: null,
-  isLoading: false,
-  error: null
-});
+store.skipSetWhen('user', (prev, next) => prev.id === next.id && prev.name === next.name);
+store.skipSetWhen('tags', (prev, next) => prev.length === next.length && prev.every((t, i) => t === next[i]));
 
-// Function to update store from anywhere
-export async function fetchUserData(userId) {
-  // Update loading state
-  userStore.set({ isLoading: true, error: null });
-  
-  try {
-    // API call
-    const response = await fetch(`/api/users/${userId}`);
-    const userData = await response.json();
-    
-    // Update store with fetched data
-    userStore.set({ 
-      user: userData,
-      isLoading: false 
-    });
-    
-    return userData;
-  } catch (error) {
-    // Update store with error
-    userStore.set({ 
-      error: error.message,
-      isLoading: false 
-    });
-    
-    throw error;
-  }
-}
+store.mergeSet('user', { name: 'Alice' }); // skipped — same content
 
-// Components can use the store
-function UserProfile() {
-  const { user, isLoading, error } = useStoreSelector(userStore, ['user', 'isLoading', 'error']);
-  
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-  if (!user) return <div>No user data</div>;
-  
-  return (
-    <div>
-      <h2>{user.name}</h2>
-      <p>Email: {user.email}</p>
-    </div>
-  );
-}
-
-// Can call the function from anywhere
-// fetchUserData('123');
+store.removeSkipSetWhen('user'); // back to reference equality
 ```
 
 ## Features
 
-- Extremely lightweight (less than 2KB minified)
-- Fine-grained subscriptions to minimize re-renders
-- Custom comparison functions for complex state updates
-- Simple middleware support with `addMiddleware()` 
-- Automatic persistence to localStorage/sessionStorage
-- Debouncing support to control update frequency
-- Fully Type-safe with TypeScript
-- No dependencies other than React
-- Update store from anywhere in your application
+- Fine-grained subscriptions — components only re-render when their keys change
+- Full TypeScript inference — no manual generics
+- `createSelectorHook` for one-line per-store hooks
+- `merge` / `mergeSet` for ergonomic object updates
+- `batch` to group updates
+- `reset` to restore initial state (full or per-key)
+- `onChange` for non-React listeners
+- `skipSetWhen` for custom equality
+- Custom comparison functions in selectors
+- Middleware (validation, transforms, logging)
+- Persistence (localStorage, sessionStorage, AsyncStorage)
+- Zero dependencies (peer: React >= 17)
+- < 5KB minified
 
-## Development Tools
+## ESLint Plugin
 
-### ESLint Plugin
-
-[eslint-plugin-react-microstore](https://www.npmjs.com/package/eslint-plugin-react-microstore) provides ESLint rules to help you write with react-microstore.
-
-#### Installation
+[eslint-plugin-dev-react-microstore](https://www.npmjs.com/package/eslint-plugin-dev-react-microstore) warns on unused selector keys:
 
 ```bash
-npm install --save-dev eslint-plugin-react-microstore
+npm install --save-dev eslint-plugin-dev-react-microstore
 ```
 
-#### Usage
-
-ESLint configuration:
-
 ```tsx
-import reactMicrostore from 'eslint-plugin-react-microstore';
+import reactMicrostore from 'eslint-plugin-dev-react-microstore';
 
-const eslintConfig = [{
-    "plugins": {
-      "react-microstore": reactMicrostore
-    },
-    "rules": {
-      "react-microstore/no-unused-selector-keys": "warn"
-    }
-}]
+export default [{
+  plugins: { 'dev-react-microstore': reactMicrostore },
+  rules: { 'dev-react-microstore/no-unused-selector-keys': 'warn' }
+}];
 ```
 
- `react-microstore/no-unused-selector-keys`  
-  Warns when you select keys in `useStoreSelector` but don't destructure or use them.
-
 ```tsx
-// ❌ This will trigger the rule
-const { a } = useStoreSelector(store, ['a', 'b']); // 'b' is unused
+// warns — 'b' is selected but unused
+const { a } = useStore(['a', 'b']);
 
-// ✅ This is fine
-const { a, b } = useStoreSelector(store, ['a', 'b']);
+// fine
+const { a, b } = useStore(['a', 'b']);
 ```

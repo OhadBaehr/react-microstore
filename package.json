@@ -1,19 +1,22 @@
 {
   "name": "dev-react-microstore",
-  "version": "5.0.0",
+  "version": "6.0.1",
   "description": "A minimal global state manager for React with fine-grained subscriptions.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/OhadBaehr/react-microstore.git"
+    "url": "https://github.com/OhadBaehr/dev-react-microstore.git"
   },
-  "homepage": "https://github.com/OhadBaehr/react-microstore",
+  "homepage": "https://github.com/OhadBaehr/dev-react-microstore",
   "bugs": {
-    "url": "https://github.com/OhadBaehr/react-microstore/issues"
+    "url": "https://github.com/OhadBaehr/dev-react-microstore/issues"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --minify",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit --skipLibCheck",
     "prepare": "npm run build"
   },
   "keywords": [
@@ -32,8 +35,15 @@
     "react": ">=17.0.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^28.1.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "tsup": "^8.4.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
   }
 }
